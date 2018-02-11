@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+    <head>
+         <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Cadastro Terracap</title>
+      <script type="text/javascript" src="jquery-1.11.1.js"></script>
+      <script>
+          $(document).bind('mobileinit',function(){
+              $.mobile.changePage.defaults.changeHash = false;
+              $.mobile.hashListeningEnabled = false;
+              $.mobile.pushStateEnabled = false;
+          });
+      </script> 
+      <script type="text/javascript" src="jquery.mobile-1.4.5.js"></script>
+      <script type="text/javascript" src="json2.js"></script>
+      <script type="text/javascript" src="ol-debug.js"></script>
+      <script type="text/javascript" src="ol.js"></script>
+      <script type="text/javascript" src="papaparse.min.js"></script>
+      <script type="text/javascript" src="proj4.js"></script>
+      <script type="text/javascript" src="31983.js"></script>
+      <script type="text/javascript" src="disabledAjax.js"></script>
+      <script type="text/javascript" src="jquery.maskedinput.js"></script>
+
+      <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+      <link rel="apple-touch-icon" href="apple-touch-icon.png">
+      <link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-retina.png">
+
+      <link rel="stylesheet" href="jquery.mobile-1.4.5.css"  />
+      <link rel="stylesheet" href="ol.css"/>
+      <link rel="stylesheet" href="mapa.css"/>
+      <script type="text/javascript" src="cordova.js"></script>
+
+    </head>
+    <body>
+          <div data-role="header">
+            <h1>Cadastro</h1>
+          </div>
+          <div data-role="content">
+            <a data-role="button" id="iniciar">Iniciar Cadastro</a>
+            <a data-role="button" id="gerarCSV">Gerar CSV</a>
+          </div>
+          <img id="logo" src="images/Assinatura-Topocart.png" width="250" height="190" style="display: block; margin: 0 auto"/>
+          <div data-theme="a" data-role="footer" data-position="fixed">
+            <h3>
+              Topocart
+            </h3>
+          </div>
+          <script>
+            var db = window.openDatabase("bdTerraCap", "1.0", "BD da TerraCap", 5000000); 
+
+            function errorCB(err) {
+                    alert("Error processing SQL: " + err.code + " - " + err.message);
+            };
+
+            db.transaction(
+                    function(transaction){
+//                            transaction.executeSql('DROP TABLE cadastro;');
+                            transaction.executeSql('CREATE TABLE IF NOT EXISTS cadastro(id INTEGER PRIMARY KEY AUTOINCREMENT, dthri INTEGER NOT NULL, idFeature SMALLINT, logitude REAL, latitude REAL, ra TEXT, quadra TEXT, conjunto TEXT, lote TEXT, usoSolo TEXT, nPavimentos TEXT, nomeEdificacao TEXT);');
+                    }
+            );
+
+            if (localStorage.id == null) {
+                    localStorage.id = 0;
+            };
+            localStorage.orto = 0;
+            function captureCoordenada() {
+                if (confirm("Deseja capturar sua posição?") == true) {
+                    localStorage.captura = 1;
+                    location.href = "cadastroMapa.html";
+                } else {
+                    localStorage.captura = 0;
+                    location.href = "cadastroMapa.html";
+                }
+            }
+            
+            $('#iniciar').click( function(){
+                  localStorage.id = 0;
+                  captureCoordenada();  
+            });
+            
+            
+           $('#gerarCSV').click(function(){
+                    db.transaction(
+                    function(tx){
+                            var sql = "SELECT id, dthri, logitude, latitude, ra, quadra, conjunto, lote, usoSolo, nPavimentos, nomeEdificacao FROM cadastro;" ;
+                            var resultString = "ID|LONGITUDE,LATITUDE|RA|QUADRA|CONJUNTO|LOTE|USO_OCUPACAO|NPAVIMENTOS|NOME_ED\n";
+                            tx.executeSql(sql,[],
+                                    function(tx,result){
+                                            for (var i=0; i < result.rows.length; i++){
+                                                    var row = result.rows.item(i);
+                                                    var coord = ol.proj.transform([row['logitude'], row['latitude']], 'EPSG:3857','EPSG:4326');
+                                                                            var lts = row['id']+'|'+coord+'|'+row['ra']+'|'+row['quadra']+'|'+row['conjunto']+'|'+row['lote']+'|'+row['usoSolo']+'|'+row['nPavimentos']+'|'+row['nomeEdificacao']+'\n';
+                                                    resultString += lts;
+                                            };
+                                            console.log(resultString);
+                                            var data = new Date();
+                                            var mes = data.getMonth() +1;
+                                             writeToFile("terracap-"+data.getDate()+"-"+mes+"-"+data.getHours()+"-cap.csv", resultString);                                        
+                                    },
+                                    errorCB
+                            );
+                    });
+            });
+            
+            function writeToFile(fileName, data) {
+                window.resolveLocalFileSystemURL('file:///storage/sdcard0/', function (directoryEntry) {
+                    directoryEntry.getFile(fileName, { create: true }, function (fileEntry) {
+                        fileEntry.createWriter(function (fileWriter) {
+                            fileWriter.onwriteend = function (e) {
+                                // for real-world usage, you might consider passing a success callback
+                                console.log('Write of file "' + fileName + '"" completed.');
+                            };
+
+                            fileWriter.onerror = function (e) {
+                                // you could hook this up with our global error handler, or pass in an error callback
+                                console.log('Write failed: ' + e.toString());
+                            };
+                            fileWriter.write(data);
+                            alert("CSV gerado com sucesso!")
+                        }, errorHandler.bind(null, fileName));
+                    }, errorHandler.bind(null, fileName));
+                }, errorHandler.bind(null, fileName));
+            }
+
+            var errorHandler = function (fileName, e) {  
+              var msg = '';
+
+              switch (e.code) {
+                  case FileError.QUOTA_EXCEEDED_ERR:
+                      msg = 'Storage quota exceeded';
+                      break;
+                  case FileError.NOT_FOUND_ERR:
+                      msg = 'File not found';
+                      break;
+                  case FileError.SECURITY_ERR:
+                      msg = 'Security error';
+                      break;
+                  case FileError.INVALID_MODIFICATION_ERR:
+                      msg = 'Invalid modification';
+                      break;
+                  case FileError.INVALID_STATE_ERR:
+                      msg = 'Invalid state';
+                      break;
+                  default:
+                      msg = 'Unknown error';
+                      break;
+              };
+
+                console.log('Error (' + fileName + '): ' + msg);
+            }
+            
+            function fail(error) {
+              alert(error.code);
+            }
+        </script>
+    </body>
+</html>

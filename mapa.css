@@ -1,0 +1,71 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : 22/07/2015, 08:21:16
+    Author     : felipe.camargos
+*/
+.map {
+  height: 100%;
+  width: 100%;
+}
+.map:-moz-full-screen {
+  height: 100%;
+}
+.map:-webkit-full-screen {
+  height: 100%;
+}
+.map:-ms-fullscreen {
+  height: 100%;
+}
+.map:full-screen {
+  height: 100%;
+}
+.ol-custom{
+  right: .5em;
+  top: 2.3em;
+}
+.inv{
+  display: none;
+}
+.pagina{
+  height: 100%;
+  width: 100%;
+}
+body {
+  overflow-y:hidden;
+}
+.botaoContCad{
+  background-image: url(images/save.png);
+  width: 16px; 
+  height: 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.desligar{
+  height: 20px;
+  top: 80%;
+  left: 5px;
+  position: absolute;
+  z-index: 200000;
+}
+
+
+.btnDesligar {
+  background-image: url(images/desligar.png);
+  width: 16px; 
+  height: 16px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.ui-dialog-contain {
+	width: 92.5%;
+	max-width: 500px;
+	margin: 10% auto 15px auto;
+	padding: 0;
+	position: relative;
+	top: -15px;
+}

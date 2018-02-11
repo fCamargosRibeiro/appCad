@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html lang="en" class="no-js ie6"> <![endif]-->
+<!--[if IE 7 ]>    <html lang="en" class="no-js ie7"> <![endif]-->
+<!--[if IE 8 ]>    <html lang="en" class="no-js ie8"> <![endif]-->
+<!--[if IE 9 ]>    <html lang="en" class="no-js ie9"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--> <html lang="en" class="no-js"><!--<![endif]-->
+  <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Cadastro Terracap</title>
+      <script type="text/javascript" src="jquery-1.11.1.js"></script>
+      <script type="text/javascript" src="jquery.mobile-1.4.5.js"></script>
+      <script type="text/javascript" src="json2.js"></script>
+      <script type="text/javascript" src="ol-debug.js"></script>
+      <script type="text/javascript" src="ol.js"></script>
+      <script type="text/javascript" src="papaparse.min.js"></script>
+      <script type="text/javascript" src="proj4.js"></script>
+      <script type="text/javascript" src="31983.js"></script>
+      <script type="text/javascript" src="disabledAjax.js"></script>
+      <script type="text/javascript" src="jquery.maskedinput.js"></script>
+
+      <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+      <link rel="apple-touch-icon" href="apple-touch-icon.png">
+      <link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-retina.png">
+
+      <link rel="stylesheet" href="jquery.mobile-1.4.5.css"  />
+      <link rel="stylesheet" href="ol.css"/>
+      <link rel="stylesheet" href="mapa.css"/>
+      <script type="text/javascript" src="cordova.js"></script>
+    
+  </head>
+  <body>
+    <div id="pagina" class="pagina" data-ajax="false">
+      <div data-theme="a" data-role="header" data-position="fixed">
+        <h3>
+          <a id="sairCadastro" data-role="button" data-mini="true" class="ui-btn-right">
+            Sair
+          </a> 
+          <a id="local" data-role="button" data-mini="true" class="ui-btn-right btnDesligar" style="right: 20%;">
+          </a> 
+          <a id="contCad" data-role="button" data-mini="true" class="ui-btn-right botaoContCad" style="right: 50%;">
+          </a>
+          <a id="deslOrtofoto" data-role="button" data-mini="true" class="ui-btn-left" style="left: 22%;">
+            Orto
+          </a>
+          <a id="deslShap" data-role="button" data-mini="true" class="ui-btn-left">
+            Shape
+          </a> 
+        </h3>
+      </div>
+      <div id="map" class="map"></div>
+    </div>  
+    <script>
+/////////////////////////////////BANCO DE DADOS////////////////////////////////////        
+      var db = window.openDatabase("bdTerraCap", "1.0", "BD da TerraCap", 5000000); 
+      db.transaction(
+              function(transaction){
+                      //transaction.executeSql('DROP TABLE fotos;');
+                      transaction.executeSql('CREATE TABLE IF NOT EXISTS cadastro(id INTEGER PRIMARY KEY AUTOINCREMENT, dthri INTEGER NOT NULL, idFeature SMALLINT, logitude REAL, latitude REAL, ra TEXT, quadra TEXT, conjunto TEXT, lote TEXT, usoSolo TEXT, nPavimentos TEXT, nomeEdificacao TEXT);');
+              }
+      ); 
+      function errorCB(err) {
+              alert("Error processing SQL: " + err.code + " - " + err.message);
+      };
+/////////////////////////////////MAPA////////////////////////////////////       
+      var view = new ol.View({
+          center: ol.proj.fromLonLat([-47.7743, -15.9025]),
+          zoom: 19,
+          projection: "EPSG:3857"
+      });
+      var imagen1 = new ol.layer.Tile({
+        source: new ol.source.XYZ({
+          attributions: [new ol.Attribution({html: 'tiles2'})],
+          url: 'file:///storage/sdcard1/Renderizado/{z}/{x}/{y}.jpg',
+        })
+      });
+      var imagen2 = new ol.layer.Tile({
+        source: new ol.source.XYZ({
+          attributions: [new ol.Attribution({html: 'tiles2'})],
+          url: 'file:///sdcard/Renderizado/{z}/{x}/{y}.jpg' ,
+        })
+      });
+      var layers = [imagen1,imagen2];
+      var map = new ol.Map({
+          target: 'map',
+          layers: layers,
+          view: view
+      });
+      
+      
+/////////////////////////////////SHAPE////////////////////////////////////  
+      var sourceGeoJson = new ol.source.Vector({
+          wrapX: false,   
+      });
+      $.getJSON("area2_1.geojson", function(json) {
+          sourceGeoJson.addFeatures((new ol.format.GeoJSON()).readFeatures(json,{dataProjection: "EPSG:31983", featureProjection: "EPSG:3857"}));
+          sourceGeoJson.getFeatures().forEach(function (feature) {
+            var estilo = new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#0066ff',
+                width: 2
+              }),
+              text: new ol.style.Text({
+                text: feature.get('lote'),
+                scale: 1.2,
+                fill: new ol.style.Fill({
+                  color: '#ff0000'
+                })
+              })
+            });
+            feature.setStyle(estilo);
+          });
+      });
+//      sourceGeoJson.on('addfeature', function(event) {
+//        var feature = event.feature;
+//        var estilo = new ol.style.Style({
+//          stroke: new ol.style.Stroke({
+//            color: '#0066ff',
+//            width: 2
+//          }),
+//          text: new ol.style.Text({
+//            text: feature.get('lote'),
+//            fill: new ol.style.Fill({
+//              color: '#ff0000'
+//            })
+//          })
+//        });
+//        feature.setStyle(estilo);
+//      });  
+      vectorLayer = new ol.layer.Vector({
+        source: sourceGeoJson,
+        opacity: 0.7
+      });
+      
+      
+      
+      var sourceGeoJsonQdCj = new ol.source.Vector({
+          wrapX: false,   
+      });
+      
+      
+      $.getJSON("quadra_conjunto.geojson", function(json) {
+          sourceGeoJsonQdCj.addFeatures((new ol.format.GeoJSON()).readFeatures(json,{dataProjection: "EPSG:31983", featureProjection: "EPSG:3857"}));
+          sourceGeoJsonQdCj.getFeatures().forEach(function (feature) {
+            var estilo = new ol.style.Style({
+              stroke: new ol.style.Stroke({
+                color: '#0066ff',
+                width: 2
+              }),
+              text: new ol.style.Text({
+                text: feature.get('QUADRA'),
+                scale: 1.2,
+                fill: new ol.style.Fill({
+                  color: '#006600'
+                })
+              })
+            });
+            feature.setStyle(estilo);
+          });
+      });
+      
+      vectorLayerQdCj = new ol.layer.Vector({
+        source: sourceGeoJsonQdCj,
+        opacity: 0.7
+      });
+      
+      $('#deslOrtofoto').click( function(){
+        if(imagen1.getVisible() || imagen2.getVisible()){
+           imagen1.setVisible(false); 
+           imagen2.setVisible(false); 
+           localStorage.orto = 1;
+        }else{
+           imagen1.setVisible(true);
+           imagen2.setVisible(true);
+           localStorage.orto = 0;
+        }
+      });
+      $('#deslShap').click( function(){
+        if(vectorLayer.getVisible()){
+           vectorLayer.setVisible(false); 
+        }else{
+           vectorLayer.setVisible(true);
+        }
+      });
+/////////////////////////////////POSITION//////////////////////////////////// 
+      var geolocation = new ol.Geolocation({
+        projection: view.getProjection()
+      });
+     
+      function getLocation() {
+          if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(onSuccess, onError);
+          } else {
+              x.innerHTML = "Geolocation is not supported by this browser.";
+          }
+      }
+      var onSuccess = function(position) {
+         localStorage.latitude = position.coords.latitude;
+         localStorage.longitude = position.coords.longitude;
+         var coordinates = new ol.proj.fromLonLat([position.coords.longitude,position.coords.latitude]);
+         map.getView().setCenter(coordinates);
+      };
+
+      function onError(error) {
+          alert('code: '    + error.code    + '\n' +
+                'message: ' + error.message + '\n');
+      }
+     
+/////////////////////////////////SELECT////////////////////////////////////       
+      map.on('click', function(evt) {
+        map.forEachFeatureAtPixel(evt.pixel, function(feature){
+          if(feature.get('quadra')){
+            localStorage.Quadra = feature.get('quadra');
+          }else if(feature.get('conjunto')){
+            localStorage.Conjunto = feature.get('conjunto');
+          }
+        });
+        if(localStorage.inserirPonto == 1){
+          var coord = evt.coordinate;
+          var point = new ol.geom.Point(coord);
+          var featurePonto = new ol.Feature(point);
+          sourceAddPonto.addFeature(featurePonto);
+        } 
+      });
+      var select = new ol.interaction.Select({
+        wrapX: false
+      });
+
+      var modify = new ol.interaction.Modify({
+        features: select.getFeatures()
+      });
+      
+      
+/////////////////////////////////Pontos////////////////////////////////////
+    
+    var vectorPontosAdicionados = new ol.source.Vector();
+    var vectorPontos = new ol.layer.Vector({
+        source: vectorPontosAdicionados,
+        style: new ol.style.Style({
+          fill: new ol.style.Fill({
+            color: 'rgba(255, 255, 255, 0.2)'
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#ffcc33',
+            width: 2
+          }),
+          image: new ol.style.Circle({
+            radius: 5,
+            fill: new ol.style.Fill({
+              color: '#ffcc33'
+            })
+          })
+        })
+    });
+    
+    var featuresPonto = new ol.Collection();
+    var sourceAddPonto = new ol.source.Vector({features: featuresPonto});
+    var vectorAddPonto = new ol.layer.Vector({
+      source: sourceAddPonto,
+      style: new ol.style.Style({
+        fill: new ol.style.Fill({
+          color: 'rgba(255, 255, 255, 0.2)'
+        }),
+        stroke: new ol.style.Stroke({
+          color: '#ffcc33',
+          width: 2
+        }),
+        image: new ol.style.Circle({
+          radius: 5,
+          fill: new ol.style.Fill({
+            color: '#ffcc33'
+          })
+        })
+      })
+    });
+      map.addLayer(vectorLayer);
+      map.addLayer(vectorLayerQdCj);
+      map.addLayer(vectorPontos);
+      map.addLayer(vectorAddPonto);
+  
+    var select = new ol.interaction.Select({
+      wrapX: false
+    });
+    map.addInteraction(select);
+    var modify = new ol.interaction.Modify({
+       features: select.getFeatures() 
+    });
+    map.addInteraction(modify);  
+    
+    sourceAddPonto.on('addfeature', function(event) {
+      var feature = event.feature;
+      getMaxId(feature);
+    });  
+    
+  
+    modify.on('modifyend',function(e){
+      var feature = e.features.getArray()[0];
+      localStorage.id = feature.getId();
+      var coordenada = feature.getGeometry().getCoordinates();
+      localStorage.latitude = coordenada[0];
+      localStorage.longitude = coordenada[1]; 
+    });
+    var selectedFeatures = select.getFeatures();
+    selectedFeatures.on('add', function(evt) {
+      var feature = evt.element;
+      localStorage.id = feature.getId();
+      var coordenada = feature.getGeometry().getCoordinates();
+      localStorage.latitude = coordenada[0];
+      localStorage.longitude = coordenada[1];
+    });
+      
+      function getMaxId(feature){
+        db.transaction(
+                function(transaction){
+                        transaction.executeSql('select MAX(id) as id from cadastro;',
+                        [], function(transaction,result){
+                          row = result.rows.item(0);
+                          feature.setId(row['id']+1);
+                          localStorage.id = feature.getId();
+                          var coordenada = feature.getGeometry().getCoordinates();
+                          localStorage.latitude = coordenada[0];
+                          localStorage.longitude = coordenada[1]; 
+                        }, errorCB);
+                }
+        );
+      }   
+      function getMAX(){
+        var id;
+        db.transaction(
+                function(transaction){
+                        transaction.executeSql('select MAX(id) as id from cadastro;',
+                        [], function(transaction,result){
+                          row = result.rows.item(0);
+                          id = row['id'];
+                        }, errorCB);
+                }
+        );
+      } 
+      
+      
+      function getCentralizaMapa(){
+        var coord;
+        db.transaction(
+                function(transaction){
+                        transaction.executeSql('select logitude, latitude from cadastro where id = (select MAX(id) as id from cadastro);',
+                        [], function(transaction,result){
+                          row = result.rows.item(0);
+                          coord =  ol.proj.transform([row['logitude'], row['latitude']], 'EPSG:3857', map.getView().getProjection());
+                          map.getView().setCenter(coord);
+                        }, errorCB);
+                }
+        );
+      } 
+/////////////////////////////////CHAMADA INICIAL////////////////////////////////////     
+      function init() {
+        addCadastrosAnteriores();
+      }
+            
+      window.onload = function(){
+             init();
+      }
+/////////////////////////////////PONTOS CADASTRADOS////////////////////////////////////        
+      function addCadastrosAnteriores(){
+              db.transaction(
+                      function(transaction){
+                              transaction.executeSql('select c.logitude, c.latitude, c.idFeature from cadastro c;',
+                              [], addCadastrosSuccess, errorCB);
+                      }
+              );
+      }
+      
+      function addCadastrosSuccess(transaction,result){
+              for (var i=0; i < result.rows.length; i++){
+                      row = result.rows.item(i);
+                      criarMarca(row['logitude'],row['latitude'], row['idFeature']);
+              }
+              localStorage.latitude = 0;
+              localStorage.longitude = 0;
+              localStorage.id = 0;
+              localStorage.RA = 0;
+              localStorage.Quadra = 0;
+              localStorage.Conjunto = 0;
+              localStorage.Lote = 0;
+              localStorage.inserirPonto = 1;
+              if(localStorage.orto == 0){
+                imagen1.setVisible(true); 
+                imagen2.setVisible(true);
+              }else{
+                imagen1.setVisible(false); 
+                imagen2.setVisible(false);
+              }
+              if(localStorage.captura == 1){
+                getCentralizaMapa();
+              }else{
+                var coordinates = new ol.proj.fromLonLat([-47.7743, -15.9025]);
+                map.getView().setCenter(coordinates);
+              }
+      }
+      
+      function criarMarca(coordX, coordY, id){
+        var coord = [coordX, coordY];
+        var point = new ol.geom.Point(coord);
+        var feature = new ol.Feature(point);
+        feature.setId(id);
+        vectorPontosAdicionados.addFeature(feature);
+        vectorPontos.setSource(vectorPontosAdicionados);
+      }
+/////////////////////////////////SALVANDO////////////////////////////////////       
+      
+      
+      function salvarPonto(){
+        if (sourceAddPonto.getFeatures() != '') {
+            db.transaction(
+                function (transaction) {
+                              transaction.executeSql('insert into cadastro(dthri, idFeature, logitude, latitude) values (datetime("now","localtime"), ?, ?, ?);',
+                                      [localStorage.id, localStorage.latitude, localStorage.longitude], insertSuccessCadastroBP, errorCB);
+                }
+          );
+        } else if(localStorage.id != 0){
+            //update
+            db.transaction(
+                    function (transaction) {
+                        transaction.executeSql('update cadastro set dthri = datetime("now","localtime"), idFeature=?, logitude=?, latitude=? where id = ?',
+                                [localStorage.id, localStorage.latitude, localStorage.longitude, localStorage.id], updateSuccessCadastro, errorCB);
+                    }
+            );
+        }else{
+          alert('Não existe ponto selecionado ou um ponto novo adicionado no mapa!')
+        }
+          
+      }
+      
+      function insertSuccessCadastroBP(tx, result) {
+        location.href = "cadastroDados.html";
+      }
+      function updateSuccessCadastro(tx, result) {
+        location.href = "cadastroDados.html";
+      }
+      $('#sairCadastro').click( function(){
+        location.href = "index.html";
+      });
+      $('#local').click( function(){
+        if(localStorage.inserirPonto == 1){
+          localStorage.inserirPonto = 0;
+        }else{
+          localStorage.inserirPonto = 1;
+        }  
+      });
+      $('#contCad').click( function(){
+        salvarPonto();
+      });
+      
+      //////////////////////////////////////////////////////////////////////////////////
+      
+      
+    
+    </script>  
+  </body>
+</html>

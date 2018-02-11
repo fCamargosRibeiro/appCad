@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+  <head>
+     <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Cadastro Terracap</title>
+      <script type="text/javascript" src="jquery-1.11.1.js"></script>
+      <script>
+          $(document).bind('mobileinit',function(){
+              $.mobile.changePage.defaults.changeHash = false;
+              $.mobile.hashListeningEnabled = false;
+              $.mobile.pushStateEnabled = false;
+          });
+      </script> 
+      <script type="text/javascript" src="jquery.mobile-1.4.5.js"></script>
+      <script type="text/javascript" src="json2.js"></script>
+      <script type="text/javascript" src="ol-debug.js"></script>
+      <script type="text/javascript" src="ol.js"></script>
+      <script type="text/javascript" src="papaparse.min.js"></script>
+      <script type="text/javascript" src="proj4.js"></script>
+      <script type="text/javascript" src="31983.js"></script>
+      <script type="text/javascript" src="disabledAjax.js"></script>
+      <script type="text/javascript" src="jquery.maskedinput.js"></script>
+
+      <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+      <link rel="apple-touch-icon" href="apple-touch-icon.png">
+      <link rel="apple-touch-icon" sizes="114x114" href="apple-touch-icon-retina.png">
+
+      <link rel="stylesheet" href="jquery.mobile-1.4.5.css"  />
+      <link rel="stylesheet" href="ol.css"/>
+      <link rel="stylesheet" href="mapa.css"/>
+      <script type="text/javascript" src="cordova.js"></script>
+  </head>
+  <body>
+    <div data-role="header" id="tela2">
+        <h1>Cadastro</h1>
+    </div>
+    <div data-role="content">
+        <div data-role="fieldcontain">
+            <label for="ra">RA</label>
+            <input type="text" id="ra" data-mini="true" />
+        </div>
+        <div data-role="fieldcontain">
+            <label for="quadra">Quadra</label>
+            <input type="text" id="quadra" data-mini="true" />
+        </div>
+        <div data-role="fieldcontain">
+            <label for="conjunto">Conjunto</label>
+            <input type="text" id="conjunto" data-mini="true" />
+        </div>
+        <div data-role="fieldcontain">
+            <label for="lote">Lote</label>
+            <input type="text" id="lote" data-mini="true" />
+        </div>
+        <div data-role="fieldcontain">
+            <label for="usoSolo">Uso / Ocupação</label>
+            <select data-native-menu="false" id="usoSolo" multiple="multiple" data-mini="true">
+              <option value="Residencial">Residencial</option>
+              <option value="Comercio">Comércio</option>
+              <option value="Servicos">Serviços</option>
+              <option value="Posto_de_Combustivel">Posto de Combustível</option>
+              <option value="Ensino">Ensino</option>
+              <option value="Religiosa">Religiosa</option>
+              <option value="Saude">Saúde</option>
+              <option value="Posto_de_Policia_Militar">Posto de Polícia Militar</option>
+              <option value="Praca">Praça</option>
+              <option value="Industria">Indústria</option>
+              <option value="Desenvolvimento_Social">Desenvolvimento Social</option>
+              <option value="Lazer">Lazer</option>
+              <option value="Outros">Outros</option>
+            </select>
+        </div>
+         <div data-role="fieldcontain">
+            <label for="lote">Nº Pavimentos</label>
+            <input type="text" id="nPavimentos" data-mini="true" />
+        </div>
+        <div data-role="fieldcontain" id="outrosOcup">
+            <label for="lote">Outros</label>
+            <input type="text" data-mini="true" id="outros"/>
+        </div>
+        <div data-role="fieldcontain">
+            <label for="nomeEdificacao">Nome Ed.</label>
+            <input type="text" id="nomeEdificacao" data-mini="true" />
+        </div>
+        <a data-role="button" id="salvarCad" data-mini="true" data-inline="true">Salvar</a>
+    </div>
+    <script type="text/javascript" src="cordova.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+    <script> 
+      var db = window.openDatabase("bdTerraCap", "1.0", "BD da TerraCap", 5000000); 
+      db.transaction(
+              function(transaction){
+                      //transaction.executeSql('DROP TABLE fotos;');
+                      transaction.executeSql('CREATE TABLE IF NOT EXISTS cadastro(id INTEGER PRIMARY KEY AUTOINCREMENT, dthri INTEGER NOT NULL, idFeature SMALLINT, logitude REAL, latitude REAL, ra TEXT, quadra TEXT, conjunto TEXT, lote TEXT, usoSolo TEXT, nPavimentos TEXT, nomeEdificacao TEXT);');
+              }
+      ); 
+      function errorCB(err) {
+              alert("Error processing SQL: " + err.code + " - " + err.message);
+      };
+      
+      $('#usoSolo').change(function () {
+        if($('#usoSolo').val() && $('#usoSolo').val().indexOf('Outros') >= 0){
+          $('#outrosOcup').toggle();
+        }
+      });
+     
+      $('#salvarCad').click( function(){
+        validaLote($('#lote').val());
+      });
+      
+      function salvarCadastroDados(){
+        if($('#usoSolo').val() && $('#usoSolo').val().indexOf('Outros') >= 0){
+          var texto = $('#usoSolo').val();
+          texto.pop();
+          texto.push($('#outros').val());
+          if($('#lote').val()){
+           //update
+            db.transaction(
+                    function (transaction) {
+                        transaction.executeSql('update cadastro set ra=?, quadra=?, conjunto=?, lote=?, usoSolo=?, nPavimentos=?, nomeEdificacao=? where id = ?',
+                                [$('#ra').val(), $('#quadra').val(), $('#conjunto').val(), $('#lote').val(), texto, $('#nPavimentos').val(), $('#nomeEdificacao').val(), localStorage.id], updateSuccessCadastroDados, errorCB);
+                    }
+            );
+          
+          }else{
+            alert("Campo lote não pode ser branco");
+          }
+        }else{
+          if($('#lote').val()){
+           if($('#usoSolo').val()){
+              db.transaction(
+                    function (transaction) {
+                        transaction.executeSql('update cadastro set ra=?, quadra=?, conjunto=?, lote=?, usoSolo=?, nPavimentos=?, nomeEdificacao=? where id = ?',
+                                [$('#ra').val(), $('#quadra').val(), $('#conjunto').val(), $('#lote').val(), $('#usoSolo').val(), $('#nPavimentos').val(), $('#nomeEdificacao').val(), localStorage.id], updateSuccessCadastroDados, errorCB);
+                    }
+              );
+           }else{
+             db.transaction(
+                    function (transaction) {
+                        var usoS = 'Residencial';
+                        console.log(usoS);
+                        transaction.executeSql('update cadastro set ra=?, quadra=?, conjunto=?, lote=?, usoSolo=?, nPavimentos=?, nomeEdificacao=? where id = ?',
+                                [$('#ra').val(), $('#quadra').val(), $('#conjunto').val(), $('#lote').val(), usoS, $('#nPavimentos').val(), $('#nomeEdificacao').val(), localStorage.id], updateSuccessCadastroDados, errorCB);
+                    }
+              );
+           }
+          }else{
+            alert("Campo lote não pode ser branco");
+          }
+        }
+      }
+      function validaLote(lote, quadra, conjunto){
+        if($('#lote').val()){
+          db.transaction(
+                function(transaction){
+                        transaction.executeSql('select cadastro.lote, cadastro.quadra, cadastro.conjunto from cadastro where cadastro.lote = ? AND cadastro.conjunto = ? AND cadastro.quadra = ?;',
+                        [$('#lote').val(), $('#conjunto').val(), $('#quadra').val()], function(transaction,result){
+                          if(result.rows.length > 0) {
+                            alert("Lote já cadastrado!");
+                          }else{
+                            salvarCadastroDados();
+                          }
+                        }, errorCB);
+                }
+          );
+        }else{
+          alert("Campo lote não pode ser branco");
+        }
+      }
+      function updateSuccessCadastroDados(tx, result) {
+        location.href = "cadastroMapa.html";
+      }
+      $('#sairCad').click( function(){
+        location.href = "index.html";
+      });
+      window.onload = function(){
+        $('#outrosOcup').hide();
+        carregaCampos();
+      }
+      function carregaCampos(){
+              if(localStorage.RA != 0 && localStorage.Quadra != 0 && localStorage.Conjunto != 0){
+                $('#ra').val(localStorage.RA);
+                $('#quadra').val(localStorage.Quadra);
+                $('#conjunto').val(localStorage.Conjunto);
+                $('#lote').val(localStorage.Lote);
+              }else{
+                console.log(db);
+                db.transaction(
+                  function(transaction){
+                        transaction.executeSql('select cadastro.ra, cadastro.quadra, cadastro.conjunto, cadastro.lote, cadastro.usoSolo, cadastro.nomeEdificacao from cadastro ORDER BY cadastro.id DESC;',
+                                [], sucessoCarregarCamposDados, errorCB);
+                        }
+                );
+              }    
+      }
+
+      function sucessoCarregarCamposDados(transaction,result){
+          row = result.rows.item(1);
+          $('#ra').val(row['ra']);
+          $('#quadra').val(row['quadra']);
+          $('#conjunto').val(row['conjunto']);
+      }
+    </script>  
+  </body>
+</html>
